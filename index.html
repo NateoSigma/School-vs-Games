@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School vs Games</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0f1220; color:#eaeaf0; margin:0; }
+    header { padding:16px; background:#171a33; text-align:center; font-size:24px; font-weight:bold; }
+    .menu { display:flex; gap:12px; padding:16px; justify-content:center; background:#1b1f3b; }
+    .menu button { padding:10px 18px; font-size:16px; cursor:pointer; border:none; border-radius:8px; background:#4f5dff; color:white; }
+    .menu button:disabled { background:#555; cursor:not-allowed; }
+    .content { padding:20px; text-align:center; }
+    .card { background:#1b1f3b; padding:16px; border-radius:12px; max-width:260px; margin:10px auto; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:12px; max-width:1000px; margin:0 auto; }
+    .stat { margin:6px 0; }
+    .hp { color:#6dff6d; }
+    .dmg { color:#ff6d6d; }
+    .heal { color:#6dd9ff; }
+    img.avatar { width:100px; height:100px; object-fit:cover; border-radius:12px; margin-bottom:8px; background:#000; }
+    .btn { padding:8px 14px; border-radius:8px; border:none; cursor:pointer; background:#2d34a5; color:white; margin-top:8px; }
+    .btn-green { background:#2ecc71; color:#0b2b18; font-weight:bold; }
+    .btn-yellow { background:#f1c40f; color:#3b2f00; font-weight:bold; }
+    .log { max-width:700px; margin:10px auto; text-align:left; background:#0b0e1a; padding:10px; border-radius:8px; font-size:14px; }
+  </style>
+</head>
+<body>
+<header>School vs Games</header>
+
+<div class="menu">
+  <button onclick="showTeam()">Drużyna</button>
+  <button onclick="showMissions()">Misje</button>
+  <button onclick="showBattleModes()">Walka</button>
+  <button onclick="showSettings()">Ustawienia</button>
+  <button onclick="showTrophies()">Pucharki</button>
+</div>
+
+<div id="content" class="content">
+  <p>Wybierz opcję z menu.</p>
+</div>
+
+<script>
+  const MAX_TEAM = 3;
+
+  // --- PROGRES MISJI ---
+  let damageDealt = 0;
+  let enemiesDefeated = 0;
+
+  // --- POSTACIE ---
+let characters = [
+  { id: 1, name: "Adrian", dmg: 3, hp: 20, maxHp: 20, img: "Adrian.png" }
+];
+
+  let team = [];
+  let trophies = 0;
+  let lastBattleMode = '';
+
+let missions = [
+  {
+    id: 1,
+    title: "1 Misja",
+    desc: "Zadaj 100 obrażeń przeciwnikom",
+    completed: false,
+    check: () => damageDealt >= 500,
+    progress: () => `${damageDealt} / 500 DMG`,
+    reward: { id: 2, name: "Natalka", dmg: 1, heal: 1, hp: 22, maxHp: 22, img: "Natalka.png" }
+  },
+  {
+    id: 2,
+    title: "2 Misja",
+    desc: "Pokonaj 50 przeciwników",
+    completed: false,
+    check: () => enemiesDefeated >= 50,
+    progress: () => `${enemiesDefeated} / 50`,
+    reward: { id: 3, name: "Oliwier", dmg: 5, hp: 17, maxHp: 18, img: "Oliwier.png" }
+  },
+  {
+    id: 3,
+    title: "3 Misja",
+    desc: "Zadaj 150 obrażeń przeciwnikom",
+    completed: false,
+    check: () => damageDealt >= 300,
+    progress: () => `${damageDealt} / 300 DMG`,
+    reward: { id: 4, name: "Nastia", dmg: 2, hp: 22, maxHp: 22, img: "Nastia.png" }
+  },
+  {
+  id: 4,
+  title: "4 Misja",
+  desc: "Pokonaj 30 Zombie",
+  completed: false,
+  check: () => zombiesDefeated >= 30,
+  progress: () => `${zombiesDefeated} / 30 Zombie`,
+  reward: { id: 5, name: "Milena", dmg: 6, hp: 18, maxHp: 18, img: "Milena.png" }
+  }
+];
+
+  // --- WROGOWIE (EASY) ---
+  const easyEnemies = [
+    { name: "Zombie", dmg: 1, hp: 10, maxHp: 10, img: "Zombie.png", aoe: false },
+    { name: "Kee Kee", dmg: 2, hp: 8, maxHp: 8, img: "KeeKee.png", aoe: false },
+    { name: "Chicken", dmg: 1, hp: 5, maxHp: 5, img: "Chicken.png", aoe: false },
+    { name: "Skeleton", dmg: 5, hp: 12, maxHp: 12, img: "Skeleton.png", aoe: false },
+    { name: "Bon Bon", dmg: 2, hp: 16, maxHp: 16, img: "BonBon.png", aoe: false }
+  ];
+
+  // --- WROGOWIE (NORMAL) ---
+  const normalEnemies = [
+    { name: "Freddy", dmg: 4, hp: 24, maxHp: 24, img: "Freddy.png", aoe: false },
+    { name: "Bonnie", dmg: 3, hp: 24, maxHp: 24, img: "Bonnie.png", aoe: true },
+    { name: "Bunzo Bunny", dmg: 6, hp: 18, maxHp: 18, img: "BunzoBunny.png", aoe: false },
+	{ name: "Koń Trojański", dmg: 2, hp: 30, maxHp: 30, img: "KońTrojański.png", aoe: false },
+  ];
+  
+const hardcoreEnemies = [
+  { name: "Demogorgon", dmg: 8, hp: 20, maxHp: 20, img: "Demogorgon.png", aoe: true },
+  { name: "Ghast", dmg: 8, hp: 16, maxHp: 16, img: "Ghast.png", aoe: true }
+];
+
+  let currentEnemy = null;
+  let zombiesDefeated = 0;
+  let battleLog = [];
+  
+  loadGame();
+
+  function showMenu() { document.getElementById("content").innerHTML = `<p>Wybierz opcję z menu.</p>`; }
+
+  // --- DRUŻYNA ---
+  function showTeam() {
+    const content = document.getElementById("content");
+    let html = `<h2>Drużyna (${team.length}/${MAX_TEAM})</h2>`;
+    if (team.length === 0) html += `<p>Brak postaci w drużynie.</p>`;
+    else { html += `<div class="grid">`;
+      team.forEach(m => {
+        html += `<div class="card">
+          <img class="avatar" src="${m.img}">
+          <h3>${m.name}</h3>
+          <div class="stat dmg">DMG: ${m.dmg}</div>
+          ${m.heal ? `<div class=\"stat heal\">HEAL: ${m.heal}</div>` : ``}
+          <div class="stat hp">HP: ${m.hp}/${m.maxHp}</div>
+          <button class="btn" onclick="removeFromTeam(${m.id})">Usuń z drużyny</button>
+        </div>`;
+      }); html += `</div>`;
+    }
+    html += `<hr><h2>Dostępne postacie</h2><div class="grid">`;
+    characters.forEach(c => {
+      const inTeam = team.find(m => m.id === c.id);
+      html += `<div class="card">
+        <img class="avatar" src="${c.img}">
+        <h3>${c.name}</h3>
+        <div class="stat dmg">DMG: ${c.dmg}</div>
+        ${c.heal ? `<div class=\"stat heal\">HEAL: ${c.heal}</div>` : ``}
+        <div class="stat hp">HP: ${c.hp}/${c.maxHp}</div>
+        ${!inTeam && team.length < MAX_TEAM ? `<button class=\"btn\" onclick=\"addToTeam(${c.id})\">Dodaj do drużyny</button>` : ``}
+      </div>`;
+    });
+    html += `</div><br><button class="btn" onclick="showMenu()">Powrót do menu</button>`;
+    content.innerHTML = html;
+  }
+
+function showTrophies() {
+  const content = document.getElementById("content");
+
+  content.innerHTML = `
+    <h2>🏆 Pucharki</h2>
+
+    <div class="card" style="max-width:400px;">
+      <h3>Łączna liczba pucharków</h3>
+      <p style="font-size:32px; font-weight:bold;">🏆 ${trophies}</p>
+
+      <hr>
+
+      <p>🥉 Easy – 1 pucharek</p>
+      <p>🥈 Normal – 2 pucharki</p>
+      <p>🥇 Hardcore – 5 pucharków</p>
+    </div>
+
+    <br>
+    <button class="btn" onclick="showMenu()">Powrót do menu</button>
+  `;
+}
+
+function addToTeam(id) {
+  if (team.length >= MAX_TEAM) return;
+  const c = characters.find(x => x.id===id);
+  if(!c || team.find(m => m.id===id)) return;
+  team.push({...c});
+  saveGame(); // <--- zapis po zmianie drużyny
+  showTeam();
+}
+
+function removeFromTeam(id) {
+  team = team.filter(m => m.id !== id);
+  saveGame(); // <--- zapis po zmianie drużyny
+  showTeam();
+}
+
+function showSettings() {
+  const content = document.getElementById("content");
+
+  content.innerHTML = `
+    <h2>Ustawienia</h2>
+
+    <div class="card" style="max-width:400px;">
+      <h3>⚠️ Reset gry</h3>
+      <p>Ta opcja usunie cały zapis gry:<br>
+      postacie, misje, statystyki.</p>
+
+      <button class="btn" style="background:#e74c3c;" onclick="resetGame()">
+        Resetuj całą grę
+      </button>
+    </div>
+
+    <br>
+    <button class="btn" onclick="showMenu()">Powrót do menu</button>
+  `;
+}
+
+  // --- MISJE ---
+function showMissions() {
+  const content = document.getElementById("content");
+  let html = `<h2>Misje</h2><div class="grid">`;
+
+  missions.forEach(m => {
+    const canComplete = m.check(); // sprawdzenie, czy misję można ukończyć
+    let btnHtml = '';
+
+    if (!m.completed) {
+      btnHtml = `<button class="btn" ${canComplete ? '' : 'disabled'} onclick="completeMission(${m.id})">Ukończ misję</button>`;
+    } else {
+      btnHtml = `<p>✔ Misja ukończona</p>`;
+    }
+
+    html += `
+      <div class="card">
+        <h3>${m.title}</h3>
+        <p>${m.desc}</p>
+        <p><b>Postęp:</b> ${m.progress()} ${m.completed ? '✔' : ''}</p>
+        <p><b>Nagroda:</b> ${m.reward.name}</p>
+        <div class="stat dmg">DMG: ${m.reward.dmg}</div>
+        ${m.reward.heal ? `<div class="stat heal">HEAL: ${m.reward.heal}</div>` : ''}
+        <div class="stat hp">HP: ${m.reward.hp}</div>
+        ${btnHtml}
+      </div>
+    `;
+  });
+
+  html += `</div><br><button class="btn" onclick="showMenu()">Powrót do menu</button>`;
+  content.innerHTML = html;
+}
+  
+function completeMission(id) {
+  const m = missions.find(x => x.id===id);
+  if(!m || m.completed || !m.check()) return;
+  m.completed = true;
+  characters.push(m.reward);
+  saveGame(); // <--- zapis po ukończeniu misji
+  showMissions();
+}
+
+  // --- WALKA ---
+  function showBattleModes(){
+    const content=document.getElementById("content");
+    content.innerHTML=`<h2>Walka</h2><p>Wybierz tryb:</p>
+      <button class="btn btn-green" onclick="startEasyBattle()">Easy</button>
+      <button class="btn btn-yellow" onclick="startNormalBattle()">Normal</button>
+      <button class="btn" style="background:#c0392b;" onclick="startHardcoreBattle()">Hardcore</button>
+      <br><br><button class=\"btn\" onclick=\"showMenu()\">Powrót do menu</button>`;
+  }
+
+function startEasyBattle(){
+  lastBattleMode = 'easy';
+  if (team.length === 0) {
+    alert('Dodaj przynajmniej jedną postać do drużyny!');
+	return;
+  } 
+  
+  const e = easyEnemies[Math.floor(Math.random() * easyEnemies.length)]; 
+  currentEnemy = {...e};
+  battleLog = []; 
+  renderBattle();
+}
+
+function startNormalBattle(){
+  lastBattleMode = 'normal';
+  if (team.length === 0) {
+    alert('Dodaj przynajmniej jedną postać do drużyny!');
+	return;
+  } 
+  
+  const e = normalEnemies[Math.floor(Math.random() * normalEnemies.length)]; 
+  currentEnemy={...e}; 
+  battleLog=[]; 
+  renderBattle();
+}
+
+function startHardcoreBattle() {
+  lastBattleMode = 'hardcore';
+  if (team.length === 0) {
+    alert('Dodaj przynajmniej jedną postać do drużyny!');
+    return;
+  }
+
+  const e = hardcoreEnemies[Math.floor(Math.random() * hardcoreEnemies.length)];
+  currentEnemy = { ...e };
+  battleLog = [];
+  battleLog.push("🔥 TRYB HARDCORE – brak litości!");
+  renderBattle();
+}
+
+  function teamTotalDMG(){return team.reduce((s,m)=>s+m.dmg,0);}
+
+  function attackEnemy(){
+    if(!currentEnemy)return;
+
+    // HEAL - Natalia leczy całą drużynę
+    team.forEach(m=>{if(m.heal&&m.hp>0){m.hp+=m.heal;if(m.hp>m.maxHp)m.hp=m.maxHp;battleLog.push(`${m.name} leczy drużynę o ${m.heal} HP.`);}});
+
+    const dmg=teamTotalDMG();
+    currentEnemy.hp-=dmg;
+    damageDealt+=dmg;
+    battleLog.push(`Drużyna zadaje ${dmg} DMG.`);
+
+    if (currentEnemy.hp <= 0) {
+      enemiesDefeated++;
+
+      if (currentEnemy.name === "Zombie") {
+        zombiesDefeated++;
+      }
+
+      battleLog.push(`Wróg pokonany!`);
+      endBattle(true);
+      return;
+    }
+
+    // Atak wroga
+    const alive=team.filter(m=>m.hp>0);
+    if(alive.length===0){endBattle(false); return;}
+
+    if(currentEnemy.aoe){
+      team.forEach(m=>{m.hp-=currentEnemy.dmg;if(m.hp<0)m.hp=0;});
+      battleLog.push(`${currentEnemy.name} zadaje ${currentEnemy.dmg} DMG całej drużynie!`);
+    }else{
+      const target=alive[Math.floor(Math.random()*alive.length)];
+      target.hp-=currentEnemy.dmg;if(target.hp<0)target.hp=0;
+      battleLog.push(`${currentEnemy.name} zadaje ${currentEnemy.dmg} DMG (${target.name}).`);
+    }
+
+    if(team.every(m=>m.hp<=0)){endBattle(false);return;}
+
+    renderBattle();
+  }
+
+function endBattle(win) {
+
+  if (win) {
+    let gained = 0;
+
+    if (lastBattleMode === 'easy') gained = 1;
+    else if (lastBattleMode === 'normal') gained = 2;
+    else if (lastBattleMode === 'hardcore') gained = 5;
+
+    trophies += gained;
+    battleLog.push(`🏆 Zdobyto ${gained} pucharek(ów)!`);
+    battleLog.push('🎉 WYGRANA!');
+  } else {
+    battleLog.push('💀 PRZEGRANA!');
+  }
+
+  // Reset HP drużyny po walce
+  team.forEach(m => m.hp = m.maxHp);
+
+  currentEnemy = null;
+  saveGame();
+  renderBattle(true);
+}
+
+  function renderBattle(ended=false){
+    const content=document.getElementById("content");
+    let html=`<h2>Walka</h2>`;
+
+    if(currentEnemy){
+      html+=`<div class="grid">
+        <div class="card">
+          <h3>Wróg</h3>
+          <img class="avatar" src="${currentEnemy.img}">
+          <h4>${currentEnemy.name}</h4>
+          <div class="stat dmg">DMG: ${currentEnemy.dmg}</div>
+          <div class="stat hp">HP: ${currentEnemy.hp}/${currentEnemy.maxHp}</div>
+        </div>
+        <div class="card">
+          <h3>Drużyna</h3>
+          <p>Łączny DMG: ${teamTotalDMG()}</p>
+          ${team.map(m=>`${m.name}: ${m.hp}/${m.maxHp}`).join('<br>')}
+          <br><button class="btn btn-green" onclick="attackEnemy()">Atakuj</button>
+        </div>
+      </div>`;
+    }else if(ended){
+      html+=`<button class="btn btn-green" onclick="currentEnemy ? attackEnemy() : showBattleModes()">Nowa walka</button>`;
+    }
+
+    if(battleLog.length){html+=`<div class="log">${battleLog.map(l=>`• ${l}`).join('<br>')}</div>`;}
+
+    html+=`<br><button class="btn" onclick="showBattleModes()">Powrót</button>`;
+    content.innerHTML=html;
+  }
+  
+function saveGame() {
+  const gameData = {
+    characters,
+    team,
+    missions,
+    damageDealt,
+    enemiesDefeated,
+    zombiesDefeated,
+	trophies
+  };
+  localStorage.setItem('schoolVsGamesSave', JSON.stringify(gameData));
+}
+
+function loadGame() {
+  const saved = localStorage.getItem('schoolVsGamesSave');
+  if (!saved) return;
+
+  const data = JSON.parse(saved);
+
+  characters = data.characters;
+  team = data.team;
+  damageDealt = data.damageDealt;
+  enemiesDefeated = data.enemiesDefeated;
+  zombiesDefeated = data.zombiesDefeated || 0;
+  trophies = data.trophies || 0;
+
+  missions = data.missions.map(m => {
+    if (m.id === 1) {
+      return {
+        ...m,
+        check: () => damageDealt >= 500,
+        progress: () => `${damageDealt} / 500 DMG`
+      };
+    }
+    if (m.id === 2) {
+      return {
+        ...m,
+        check: () => enemiesDefeated >= 50,
+        progress: () => `${enemiesDefeated} / 50`
+      };
+    }
+    if (m.id === 3) {
+      return {
+        ...m,
+        check: () => damageDealt >= 300,
+        progress: () => `${damageDealt} / 300 DMG`
+      };
+    }
+	if (m.id === 4) {
+      return {
+        ...m,
+        check: () => zombiesDefeated >= 30,
+        progress: () => `${zombiesDefeated} / 30 Zombie`
+      };
+    }
+    return m;
+  });
+}
+
+function resetGame() {
+  const confirmReset = confirm(
+    "Czy na pewno chcesz zresetować CAŁĄ grę?\n\nTej operacji nie da się cofnąć!"
+  );
+
+  if (!confirmReset) return;
+
+  localStorage.removeItem('schoolVsGamesSave');
+  location.reload();
+}
+
+</script>
+</body>
+</html>
